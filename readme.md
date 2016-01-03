@@ -4,7 +4,7 @@
 
 * Status: ✅ Active
 * Contributors: [@scottsweb](http://twitter.com/scottsweb)
-* Description: A WiFi smart meter / pulse counter built upon a Spark/Particle Core.
+* Description: A WiFi smart meter / pulse counter built upon a Spark / Particle Core.
 * Author: [Scott Evans](http://scott.ee)
 * Author URI: [http://scott.ee](http://scott.ee)
 * License: GNU General Public License v2.0
@@ -12,19 +12,19 @@
 
 ## About
 
-watz is a WiFi smart meter / pulse counter. It mounts to the LED on your electricity meter and measures the number of pulses in a given time period. This is used to generate realtime power information. This data is periodically pushed to the Particle cloud and can be subscribed to via server side events.
+watz is a WiFi smart meter / pulse counter. It mounts to the LED on your electricity meter and measures the number of pulses in a given time period. This is used to generate realtime power information. This data is periodically pushed to the Particle cloud and can be subscribed to via [server-sent](https://docs.particle.io/reference/firmware/core/#particle-publish-) events.
 
 The two events are:
 
-* `watz` - pushed every 15 minutes, contains a `kW` reading a pulse `count`
-* `watzup` - pushed every time 1000 pulses are detected to allow tracking of the meter
+* `watz` - pushed every 15 minutes, contains a `kW` reading and a pulse `count`
+* `watzup` - pushed every time 1000 pulses are detected to allow tracking of the meter total
 
 To log the data I am using the hosted [emoncms service](http://emoncms.org). I relay the data via
 [Node-RED](http://nodered.org/) on a Raspberry Pi using the [Particle](http://flows.nodered.org/node/node-red-contrib-particle) and [emoncms](http://flows.nodered.org/node/node-red-node-emoncms) nodes:
 
 ![watz node red](http://cloud.scott.ee/images/watz-node-red.png)
 
-When the `kW` data arrives at emoncms you will need to multiply it by 1000 to get the current watts value.
+When the `kW` data arrives with emoncms you will need to multiply it by 1000 to get the current watts value.
 
 Issues/Problems/Questions? [Open a GitHub issue](https://github.com/scottsweb/watz/issues). You can also contact me via [scott.ee](http://scott.ee) or [twitter (@scottsweb)](http://twitter.com/scottsweb).
 
@@ -42,7 +42,7 @@ The included watz.fzz file can be opened in [Fritzing](http://fritzing.org/). Re
 
 ## Installation
 
-Copy the contents of watz.ino into the [Particle Build IDE](https://build.particle.io/build/) and flash your core. You can toggle the `debug` option to `true` at the top of the script to debug the core via serial.
+Copy the contents of `watz.ino` into the [Particle Build IDE](https://build.particle.io/build/) and flash your core. You can toggle the `debug` option to `true` at the top of the script to debug the core via serial.
 
 ## Further Reading
 
