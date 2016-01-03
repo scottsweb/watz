@@ -24,7 +24,9 @@ To log the data I am using the hosted [emoncms service](http://emoncms.org). I r
 
 ![watz node red](http://cloud.scott.ee/images/watz-node-red.png)
 
-When the `kW` data arrives with emoncms you will need to multiply it by 1000 to get the current watts value.
+When the `kW` data arrives with emoncms you will need to multiply it by 1000 to get the current watts value. After a bit of tweaking your electricity dashboard should looks something like this:
+
+![watz data in a graph](http://cloud.scott.ee/images/watz-output.png)
 
 Issues/Problems/Questions? [Open a GitHub issue](https://github.com/scottsweb/watz/issues). You can also contact me via [scott.ee](http://scott.ee) or [twitter (@scottsweb)](http://twitter.com/scottsweb).
 
