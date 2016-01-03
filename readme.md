@@ -12,7 +12,7 @@
 
 ## About
 
-watz is a WiFi smart meter / pulse counter. It mounts to the LED on your electricity meter and measures the number of pulses in a given time period. This is used to generate realtime power information. This data is periodically pushed to the Particle cloud and can be subscribed to via [server-sent](https://docs.particle.io/reference/firmware/core/#particle-publish-) events.
+watz is a WiFi smart meter / pulse counter. It mounts to the LED on your electricity meter and measures the number of pulses in a given time period. This is used to generate real time power information. This data is periodically pushed to the Particle cloud and can be subscribed to via [server-sent](https://docs.particle.io/reference/firmware/core/#particle-publish-) events.
 
 The two events are:
 
@@ -33,7 +33,7 @@ Issues/Problems/Questions? [Open a GitHub issue](https://github.com/scottsweb/wa
 ## Hardware
 
 * [Particle/Spark Core](https://www.particle.io/)
-* [TSL251R-LF 3.3v Photodiode)](http://uk.farnell.com/ams/tsl251r-lf/photodiode-sensor-l-volts/dp/1182347)
+* [TSL251R-LF 3.3v Photodiode](http://uk.farnell.com/ams/tsl251r-lf/photodiode-sensor-l-volts/dp/1182347)
 * A USB power source (I went for battery + solar as my meter is outside the house)
 
 ## Circuit
