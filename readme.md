@@ -1,4 +1,4 @@
-![watz](http://cloud.scott.ee/images/watz.png)
+![watz energy monitor](http://cloud.scott.ee/images/watz.png)
 
 # watz
 
