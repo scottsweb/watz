@@ -1,261 +1,200 @@
-// This #include statement was automatically added by the Particle IDE.
-#include "flashee-eeprom/flashee-eeprom.h"
-using namespace Flashee;
-FlashDevice* flash;
+#include "PowerShield/PowerShield.h"
+
+// control when particle connects to cloud
+SYSTEM_MODE(SEMI_AUTOMATIC);
+
+// enable retianed memory
+STARTUP(System.enableFeature(FEATURE_RETAINED_MEMORY));
 
 // pins
 int intled = D7;
-int sensor = D0;
+int sensor = WKP;
+int keepAwake = D0;
 
 // general vars
-unsigned long lastSync = millis();
-#define ONE_DAY_MILLIS (24 * 60 * 60 * 1000)
 char json[64];
 char ip[24];
 
-// pulse vars
-void pulseInt(void);		    // function for interrupt
-float pulseCount = 0;  			// counts power pulses on sensor
-unsigned long pulseTotal = 0;   // total power pulses since sketch started
+// timings
+#define sleepTime 150 // 2.5 minutes before waking - during low power usage we force a check
+#define updatePeriod 600 // update every 10 minutes
 
-// set to true to debug over serial
-bool debug = false;
+// function for interrupt
+void pulse(void); 
+
+// retained pulse vars
+retained bool firstRun = true; // is this the first run?
+retained float pulseCount = 0; // counts power pulses on sensor
+retained unsigned long meterKW = 0; // counts towards a kwh 
+retained int lastUpdate = 0; // set last update time to ensure a sync at start
+retained int expectedWake = 0; // expected time to wake
+
+// initiate power monitor
+PowerShield batteryMonitor;
 
 void setup() {
+    
+    // turn off core LED
+    RGB.control(true);
+    RGB.color(0, 0, 0);
 
-	// debug over serial
-	if (debug) {
-		Serial.begin(9600);
-		while(!Serial.available()) {
-			Serial.println("Press any key to start...");
-			delay(2000);
-		}
-		Serial.println("Booting watz v1.0");
+    // set sensor as input
+    pinMode(sensor, INPUT);
+    
+    // attach interrupt to sensor pin, when RISING
+    attachInterrupt(sensor, pulse, RISING);
+    
+    // calculate if woken by time or wkp pin (this is wkp pin)
+    if ((expectedWake - Time.now()) > 2) {
 
-		// grab local IP
-		IPAddress nim_ip = WiFi.localIP();
-		sprintf(ip, "%d.%d.%d.%d", nim_ip[0], nim_ip[1], nim_ip[2], nim_ip[3]);
-
-		// output IP over serial
-		Serial.println(ip);
-		Serial.println("--------------------");
-	}
-
-	// set led as output
-	pinMode(intled, OUTPUT);
-
-	// set sensor as input
-	pinMode(sensor, INPUT);
-
-	// turn off core LED
-	RGB.control(true);
-	RGB.color(0, 0, 0);
-
-	// prepare the flash memory for writing
-	flash = Devices::createWearLevelErase();
-
-	// if debugging then set pulse total to zero
-	if (debug) {
-		flash->write((uint8_t) 0, 1);
-	}
-
-	// get pulse total from storage
-	flash->read(pulseTotal, 1);
-
-	// attach interrupt to LED pin, when RISING
-	attachInterrupt(sensor, pulseInt, RISING);
-
-	// get the correct time
-	Particle.syncTime();
-
-	// give time for time sync
-	// allow time to flash the core after reset
-	delay(15000);
-
-	// turn off wifi
-	WiFi.off();
+        // increment pulse count
+        pulseCount += 1;
+        
+        // increment the kw total
+        meterKW += 1;
+    }
 }
 
 void loop() {
+    
+    if (firstRun) {
+        
+        // connect
+        Particle.connect();
 
-	// publish once every 15 minutes
-	if (Time.minute() == 00 || Time.minute() == 15 || Time.minute() == 30 || Time.minute() == 45) {
-		if (Time.second() == 0) {
-			publish();
-		}
-	}
+         // wait for wifi to connect (10 second timeout)
+        if (waitFor(Particle.connected, 10000)) {
+            
+            // notify connection / boot
+            RGB.color(0, 255, 0);
 
-	// if pulse total equals 1000 then publish a meter count
-	if (pulseTotal >= 1000) {
-		publishTotal();
-	}
+            // sync time with cloud on first run
+            Particle.syncTime();
+            
+            // allow 5 seconds for sync of time
+            delay(5000);
+            
+            // set a last update time to now
+            lastUpdate = Time.now();
+            
+            // lights off
+            RGB.color(0, 0, 0);
+        }
+        
+        // run no more
+        firstRun = false;
+    }
+    
+    // publish once every 15 minutes(ish)
+    if (Time.now() >= (lastUpdate + updatePeriod)) {
+        publish();
+    }
+    
+    // if pulse total equals 1000 then publish a meter count
+    if (meterKW >= 1000) {
+        publishTotal();
+    }
+    
+    // deep sleep - wake up every 2.5 mins to keep data consistent if low power usage (no interrupts)
+    // add a reed or hardward switch here for keeping awake - make flashing easier. Use D0
+    // && (digitalRead(keepAwake) == HIGH)
+    expectedWake = (Time.now() + sleepTime);
+    System.sleep(SLEEP_MODE_DEEP, sleepTime);
 }
 
-void pulseInt() {
-
-	// visually indicate the blink has been detected on internal LED D7
-	digitalWrite(intled, HIGH);
-	delay(100);
-	digitalWrite(intled, LOW);
-
-	// increment pulse count
-	pulseCount++;
-
-	// increment the pulse total
-	pulseTotal++;
-
-	// write the total to storage in case of power problem
-	flash->write((uint8_t) pulseTotal, 1);
-
-	// output pulse info
-	if (debug) {
-		Serial.print("Pulse Count: ");
-		Serial.println(pulseCount);
-		Serial.print("Pulse Total: ");
-		Serial.println(pulseTotal);
-	}
+void pulse() {
+    
+    // count pulses while booted
+    // increment pulse count
+    pulseCount += 1;
+        
+    // increment the kw total
+    meterKW += 1;
 }
 
 void publish() {
 
-	// bail if no pulses are recorded
-	if (pulseCount == 0) {
-		return;
-	}
+    // connect
+    Particle.connect();
 
-	// show feedback via serial
-	if (debug) {
-		Serial.println("Publishing...");
-	}
+    // wait for wifi to connect (10 second timeout)
+    if (waitFor(Particle.connected, 10000)) {
+        
+        // starts the I2C bus
+        batteryMonitor.begin(); 
+        
+        // sets up the fuel gauge
+        batteryMonitor.quickStart();
 
-	// turn on the wifi and connect
-	WiFi.on();
-	Particle.connect();
+        // sync time
+        Particle.syncTime();
+    
+        // slow down or publish event fails
+        delay(2000);
+        
+        // notify send
+        // RGB.color(0, 0, 255);
 
-	// wait for wifi to connect (10 second timeout)
-	if (waitFor(Particle.connected, 10000)) {
+        // prepare data
+        // source: http://www.reuk.co.uk/Flashing-LED-on-Electricity-Meter.htm
+        // 3600 seconds per hour
+        float avgInterval = (Time.now() - lastUpdate) / pulseCount;  // average time between pulses since last update (seconds)
+        float kw = 3600 / (avgInterval * 1000); // meter is 1000 imp/kWh
+        
+        // create json string
+        sprintf(json,"{\"kw\": %.3f, \"count\": %.0f}", kw, pulseCount);
 
-		// slow down or publish event fails
-		delay(1000);
+        // publish event to spark cloud
+        bool success;
+        success = Particle.publish("watz", json, 60, PRIVATE);
+            
+        // we need to check the data has arrived safely
+        if (success) {
+                
+            // reset pulse count
+            pulseCount = 0;
+            
+            // set last update time
+            lastUpdate = Time.now();
+        }
+        
+        // publish power details
+        float cellVoltage = batteryMonitor.getVCell();
+        float stateOfCharge = batteryMonitor.getSoC();
+        sprintf(json,"{\"v\": %.2f, \"charge\": %.2f}", cellVoltage, stateOfCharge);
+        Particle.publish("watzbatt", json, 60, PRIVATE);
 
-		// prepare data
-		// source: http://www.reuk.co.uk/Flashing-LED-on-Electricity-Meter.htm
-		// 3600 seconds per hour
-		float avgInterval = 900 / pulseCount;  // average time between pulses in 15 minute (900 second) interval
-		float kw = 3600 / (avgInterval * 1000); // meter is 1000 imp/kWh
-
-		// create json string
-		sprintf(json,"{\"kw\": %.3f, \"count\": %.0f}", kw, pulseCount);
-
-		// output data to serial
-		if (debug) {
-			Serial.println(json);
-		}
-
-		// publish event to spark cloud
-		bool success;
-		success = Particle.publish("watz", json, 60, PRIVATE);
-
-		// we need to check the data has arrived safely
-		if (success) {
-
-			// show green led
-			// RGB.color(0, 255, 0);
-			// delay(100);
-			// RGB.color(0, 0, 0);
-
-			// show feedback via serial
-			if (debug) {
-				Serial.println("Data sent via publish event (watz)");
-			}
-
-			// reset pulse count
-			pulseCount = 0;
-
-		} else {
-
-			// show red led
-			RGB.color(255, 0, 0);
-			delay(100);
-			RGB.color(0, 0, 0);
-
-			// show error via serial
-			if (debug) {
-				Serial.println("Error: publish event (watz) failed to send");
-			}
-		}
-
-		// sync to time server once per day
-		if (millis() - lastSync > ONE_DAY_MILLIS) {
-			Particle.syncTime();
-			lastSync = millis();
-		}
-
-		// slow down or publish event fails
-		delay(1000);
-	}
-
-	// turn off the wifi to save power, leave it on if we are at 1000 total flashes
-	if ( pulseTotal <= 999 ) {
-		WiFi.off();
-	}
+        // slow down or publish event fails
+        delay(2000);
+    }
 }
 
 void publishTotal() {
+    
+    // connect
+    Particle.connect();
 
-	// show feedback via serial
-	if (debug) {
-		Serial.println("Publishing Total...");
-	}
+    // wait for wifi to connect (10 second timeout)
+    if (waitFor(Particle.connected, 10000)) {
+        
+        // sync time
+        Particle.syncTime();
+        
+        // slow down or publish event fails
+        delay(2000);
 
-	// turn on the wifi
-	WiFi.on();
-	Particle.connect();
+        // publish event to spark cloud
+        bool success;
+        success = Particle.publish("watzup", "{\"meter\": 1}", 60, PRIVATE);
+            
+        // we need to check the data has arrived safely
+        if (success) {
+    
+            // reset total pulse count
+            meterKW = 0;
+        }
 
-	// wait for wifi to connect (10 second timeout)
-	if (waitFor(Particle.connected, 10000)) {
-
-		// slow down or publish event fails
-		delay(1000);
-
-		// publish event to spark cloud
-		bool success;
-		success = Particle.publish("watzup", "{\"meter\": 1}", 60, PRIVATE);
-
-		// we need to check the data has arrived safely
-		if (success) {
-
-			// show green led
-			// RGB.color(0, 255, 0);
-			// delay(100);
-			// RGB.color(0, 0, 0);
-
-			// show feedback via serial
-			if (debug) {
-				Serial.println("Data sent via publish event (watzup)");
-			}
-
-			// reset total pulse count
-			pulseTotal = 0;
-			flash->write((uint8_t) pulseTotal, 1);
-
-		} else {
-
-			// show red led
-			RGB.color(255, 0, 0);
-			delay(100);
-			RGB.color(0, 0, 0);
-
-			// show error via serial
-			if (debug) {
-				Serial.println("Error: publish event (watzup) failed to send");
-			}
-		}
-
-		// slow down or publish event fails
-		delay(1000);
-	}
-
-	// turn off the wifi to save power
-	WiFi.off();
+        // slow down or publish event fails
+        delay(2000);
+    }
 }
