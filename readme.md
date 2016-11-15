@@ -14,10 +14,11 @@
 
 watz is a WiFi smart meter / pulse counter. It mounts to the LED on your electricity meter and measures the number of pulses in a given time period. This is used to generate real time power information. This data is periodically pushed to the Particle cloud and can be subscribed to via [server-sent](https://docs.particle.io/reference/firmware/core/#particle-publish-) events.
 
-The two events are:
+The events are:
 
-* `watz` - pushed every 15 minutes, contains a `kW` reading and a pulse `count`
+* `watz` - pushed every 10 minutes, contains a `kW` reading and a pulse `count`
 * `watzup` - pushed every time 1000 pulses are detected to allow tracking of the meter total
+* `watzbatt` - pushed every 10 minutes and uses the official power shield to grab batter information
 
 To log the data I am using the hosted [emoncms service](http://emoncms.org). I relay the data via
 [Node-RED](http://nodered.org/) on a Raspberry Pi using the [Particle](http://flows.nodered.org/node/node-red-contrib-particle) and [emoncms](http://flows.nodered.org/node/node-red-node-emoncms) nodes:
@@ -32,9 +33,10 @@ Issues/Problems/Questions? [Open a GitHub issue](https://github.com/scottsweb/wa
 
 ## Hardware
 
-* [Particle/Spark Core](https://www.particle.io/)
+* [Particle Photon](https://www.particle.io/)
+* [Particle Power Shield](https://docs.particle.io/datasheets/particle-shields/#power-shield)
 * [TSL251R-LF 3.3v Photodiode](http://uk.farnell.com/ams/tsl251r-lf/photodiode-sensor-l-volts/dp/1182347)
-* A USB power source (I went for battery + solar as my meter is outside the house)
+* A power source (I went for battery + solar as my meter is outside the house)
 
 ## Circuit
 
@@ -44,7 +46,7 @@ The included watz.fzz file can be opened in [Fritzing](http://fritzing.org/). Re
 
 ## Installation
 
-Copy the contents of `watz.ino` into the [Particle Build IDE](https://build.particle.io/build/) and flash your core. You can toggle the `debug` option to `true` at the top of the script to debug the core via serial.
+Copy the contents of `watz.ino` into the [Particle Build IDE](https://build.particle.io/build/) and flash your Photon.
 
 ## Further Reading
 
@@ -54,6 +56,13 @@ Copy the contents of `watz.ino` into the [Particle Build IDE](https://build.part
 * http://www.airsensor.co.uk/component/zoo/item/energy-monitor-mk2.html
 
 ## Changelog
+
+### 2.0
+* Upgraded to Photon board
+* Added support for Power Shield
+* Battery life monitoring 
+* Deep sleeping to improve battery performance
+* SEMI_AUTOMATTIC to have better control over cloud connection
 
 ### 1.0
 * Initial release
