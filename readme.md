@@ -42,7 +42,7 @@ Issues/Problems/Questions? [Open a GitHub issue](https://github.com/scottsweb/wa
 
 ![watz breadboard made with Fritzing](https://raw.githubusercontent.com/scottsweb/watz/master/watz.png)
 
-The included watz.fzz file can be opened in [Fritzing](http://fritzing.org/). Replace the transistor with the TSL251R-LF.
+The included watz.fzz file can be opened in [Fritzing](http://fritzing.org/). Replace the transistor with the TSL251R-LF. Version 2.0 of the code the board requires the Photon and the TSL251R-LF to be attached to the WKP pin to bring the board out of deep sleep.
 
 ## Installation
 
